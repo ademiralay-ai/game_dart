@@ -1,0 +1,34 @@
+{
+  "app_name": "Game Dart",
+  "splash": {
+    "tagline": "Hit the target, break the record!"
+  },
+  "home": {
+    "title": "Game Dart",
+    "coming_soon": "Game Coming Soon",
+    "coming_soon_desc": "An exciting dart game is being prepared...",
+    "settings_btn": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "appearance_section": "Appearance",
+    "dark_mode": "Dark Mode",
+    "language": "Language",
+    "language_tr": "🇹🇷  Turkish",
+    "language_en": "🇺🇸  English",
+    "sound_section": "Sound & Haptics",
+    "sound_effects": "Sound Effects",
+    "background_music": "Background Music",
+    "vibration": "Vibration",
+    "app_section": "Application",
+    "version": "Version",
+    "developer_label": "Developer",
+    "developer_name": "Abdullah Demiralay",
+    "developer_email": "abdullahdemiralay@gmail.com",
+    "company": "Saggio Ai",
+    "share_app": "Recommend to Friends",
+    "share_text": "Try this awesome dart game! 🎯\n\nAndroid: https://play.google.com/store/apps/details?id=com.ademiralay.game_dart\niOS: https://apps.apple.com/app/id000000000",
+    "on": "On",
+    "off": "Off"
+  }
+}

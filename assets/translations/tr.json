@@ -1,0 +1,34 @@
+{
+  "app_name": "Game Dart",
+  "splash": {
+    "tagline": "Hedefi vur, rekoru kır!"
+  },
+  "home": {
+    "title": "Game Dart",
+    "coming_soon": "Oyun Yakında Geliyor",
+    "coming_soon_desc": "Heyecan verici bir dart oyunu hazırlanıyor...",
+    "settings_btn": "Ayarlar"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "appearance_section": "Görünüm",
+    "dark_mode": "Karanlık Mod",
+    "language": "Dil",
+    "language_tr": "🇹🇷  Türkçe",
+    "language_en": "🇺🇸  İngilizce",
+    "sound_section": "Ses ve Titreşim",
+    "sound_effects": "Ses Efektleri",
+    "background_music": "Arka Plan Müziği",
+    "vibration": "Titreşim",
+    "app_section": "Uygulama",
+    "version": "Versiyon",
+    "developer_label": "Geliştirici",
+    "developer_name": "Abdullah Demiralay",
+    "developer_email": "abdullahdemiralay@gmail.com",
+    "company": "Saggio Ai",
+    "share_app": "Arkadaşlarına Öner",
+    "share_text": "Bu harika dart oyununu dene! 🎯\n\nAndroid: https://play.google.com/store/apps/details?id=com.ademiralay.game_dart\niOS: https://apps.apple.com/app/id000000000",
+    "on": "Açık",
+    "off": "Kapalı"
+  }
+}
