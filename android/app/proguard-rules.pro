@@ -12,3 +12,10 @@
 
 # Easy Localization
 -keep class **.*_Keys { *; }
+
+# Flutter engine deferred components kullanmiyoruz.
+# R8, opsiyonel Play Core siniflari yokken release build'i dusurmesin.
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+-dontwarn com.google.android.play.core.common.**
+-dontwarn com.google.android.play.core.splitcompat.**
