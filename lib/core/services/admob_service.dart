@@ -67,18 +67,18 @@ class AdmobService {
     _interstitialAd!.show();
   }
 
-  /// Her 3. oyun başlangıcında geçiş reklamı gösterir.
+  /// Her 2. oyun başlangıcında geçiş reklamı gösterir.
   void maybeShowInterstitialForGameStart() {
     if (kIsWeb) return;
 
     _gamesSinceInterstitial += 1;
-    if (_gamesSinceInterstitial < 3) {
+    if (_gamesSinceInterstitial < 2) {
       debugPrint('[AdmobService] Oyun $_gamesSinceInterstitial: reklam atlandi');
       return;
     }
 
     if (!_isInterstitialReady || _interstitialAd == null) {
-      debugPrint('[AdmobService] 3. oyunda reklam hazir degil, sonraki oyunda tekrar denenecek');
+      debugPrint('[AdmobService] 2. oyunda reklam hazir degil, sonraki oyunda tekrar denenecek');
       return;
     }
 

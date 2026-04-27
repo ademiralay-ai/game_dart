@@ -154,6 +154,26 @@ class _GameScreenState extends ConsumerState<GameScreen>
     );
   }
 
+  double _predictRadiusForAimPreview() {
+    final sideError = (_dragDelta.dx.abs() / 120).clamp(0.0, 1.0);
+    final pullControl =
+        (1 - (_pullStrength - 0.72).abs() * 1.8).clamp(0.0, 1.0);
+    final assistedSideError =
+        (sideError * (1 - _difficulty.assistStrength)).clamp(0.0, 1.0);
+
+    final precision =
+        (pullControl * 0.85 + (1 - assistedSideError) * 0.15).clamp(0.0, 1.0);
+
+    return ((1 - precision) * 0.88 + assistedSideError * 0.08)
+        .clamp(0.0, 1.0);
+  }
+
+  double _predictOffsetXForAimPreview() {
+    final sideNorm = (_dragDelta.dx / 120).clamp(-1.0, 1.0);
+    final assisted = sideNorm * (1 - _difficulty.assistStrength);
+    return assisted.clamp(-1.0, 1.0);
+  }
+
   void _onArrowDragCancel() {
     _releaseCurrentArrow();
   }
@@ -302,6 +322,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         theme: boardTheme,
                                         throwHistory: gameState.throwHistory,
                                         motion: _boardCtrl.value,
+                                        aimPreviewRadius: _predictRadiusForAimPreview(),
+                                        aimPreviewOffsetX:
+                                            _predictOffsetXForAimPreview(),
+                                        showAimPreview:
+                                            gameState.phase == GamePhase.aiming &&
+                                            _isPulling,
                                       ),
                                     ),
                                   ),
@@ -729,11 +755,17 @@ class _GameBoardPainter extends CustomPainter {
   final BoardColorTheme theme;
   final List<ThrowResult> throwHistory;
   final double motion;
+  final double aimPreviewRadius;
+  final double aimPreviewOffsetX;
+  final bool showAimPreview;
 
   const _GameBoardPainter({
     required this.theme,
     required this.throwHistory,
     required this.motion,
+    required this.aimPreviewRadius,
+    required this.aimPreviewOffsetX,
+    required this.showAimPreview,
   });
 
   @override
@@ -1114,13 +1146,48 @@ class _GameBoardPainter extends CustomPainter {
         Offset(dx - textPainter.width / 2, dy - textPainter.height / 2),
       );
     }
+
+    if (showAimPreview) {
+      final previewR = boardOuter * aimPreviewRadius.clamp(0.0, 0.90);
+      final previewAngle =
+          -math.pi / 2 + (aimPreviewOffsetX.clamp(-1.0, 1.0) * 0.38);
+      final previewCenter = Offset(
+        center.dx + previewR * math.cos(previewAngle),
+        center.dy + previewR * math.sin(previewAngle),
+      );
+
+      canvas.drawCircle(
+        previewCenter,
+        11,
+        Paint()..color = const Color(0x55FF3B30),
+      );
+      canvas.drawCircle(
+        previewCenter,
+        11,
+        Paint()
+          ..color = const Color(0xFFFF3B30)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5,
+      );
+      canvas.drawCircle(
+        previewCenter,
+        4,
+        Paint()
+          ..color = const Color(0xFFFF3B30)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(_GameBoardPainter old) =>
       theme.id != old.theme.id ||
       throwHistory.length != old.throwHistory.length ||
-      motion != old.motion;
+      motion != old.motion ||
+      showAimPreview != old.showAimPreview ||
+      aimPreviewRadius != old.aimPreviewRadius ||
+      aimPreviewOffsetX != old.aimPreviewOffsetX;
 }
 
 // ─── Skor Popup ───────────────────────────────────────────────────

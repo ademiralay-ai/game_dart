@@ -2,6 +2,35 @@ name: Android AAB Build
 
 on:
   workflow_dispatch:
+    inputs:
+      upload_to_play:
+        description: 'Upload bundle to Google Play'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      track:
+        description: 'Google Play track'
+        required: true
+        default: internal
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+      release_status:
+        description: 'Google Play release status'
+        required: true
+        default: completed
+        type: choice
+        options:
+          - completed
+          - draft
+          - inProgress
+          - halted
   push:
     branches:
       - main
@@ -91,3 +120,26 @@ jobs:
         with:
           files: build/app/outputs/bundle/release/app-release.aab
           generate_release_notes: true
+
+      - name: Verify Play Store secret
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_play == 'true'
+        shell: bash
+        env:
+          PLAYSTORE_SERVICE_ACCOUNT_JSON: ${{ secrets['PLAYSTORE_SERVICE_ACCOUNT_JSON'] }}
+        run: |
+          set -e
+          if [ -z "$PLAYSTORE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "Missing secret: PLAYSTORE_SERVICE_ACCOUNT_JSON"
+            echo "Add your Google Play service account JSON as a repository secret."
+            exit 1
+          fi
+
+      - name: Upload to Google Play
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.upload_to_play == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets['PLAYSTORE_SERVICE_ACCOUNT_JSON'] }}
+          packageName: com.ademiralay.game_dart
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: ${{ github.event.inputs.track }}
+          status: ${{ github.event.inputs.release_status }}
