@@ -1,10 +1,10 @@
 {
-  "app_name": "Game Dart",
+  "app_name": "Dart Oyunu",
   "splash": {
     "tagline": "Hedefi vur, rekoru kır!"
   },
   "home": {
-    "title": "Game Dart",
+    "title": "Dart Oyunu",
     "coming_soon": "Oyun Yakında Geliyor",
     "coming_soon_desc": "Heyecan verici bir dart oyunu hazırlanıyor...",
     "settings_btn": "Ayarlar"

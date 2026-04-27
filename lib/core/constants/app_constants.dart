@@ -2,7 +2,7 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Game Dart';
+  static const String appName = 'Dart Oyunu';
   static const String packageName = 'com.ademiralay.game_dart';
   static const String developerName = 'Abdullah Demiralay';
   static const String developerEmail = 'abdullahdemiralay@gmail.com';

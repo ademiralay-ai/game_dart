@@ -20,8 +20,8 @@ class AdmobConstants {
       'ca-app-pub-6648140774232557/8284177134';
   static const String _prodRewarded = 'ca-app-pub-6648140774232557/4713739420';
 
-  // ─── Aktif olan ID'ler (kIsRelease kontrolü ile değişir) ───
-  static bool get _useTestAds => true; // TODO: Release için false yap
+    // ─── Aktif olan ID'ler ───
+    static bool get _useTestAds => false;
 
   static String get bannerId =>
       kIsWeb ? '' : (_useTestAds ? _testBanner : _prodBanner);

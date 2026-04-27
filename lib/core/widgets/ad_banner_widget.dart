@@ -16,6 +16,7 @@ class AdBannerWidget extends StatefulWidget {
 class _AdBannerWidgetState extends State<AdBannerWidget> {
   BannerAd? _bannerAd;
   bool _isAdLoaded = false;
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -30,11 +31,23 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          if (mounted) setState(() => _isAdLoaded = true);
+          if (mounted) {
+            setState(() {
+              _isAdLoaded = true;
+              _loadFailed = false;
+            });
+          }
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          _bannerAd = null;
+          if (mounted) {
+            setState(() {
+              _bannerAd = null;
+              _loadFailed = true;
+            });
+          } else {
+            _bannerAd = null;
+          }
         },
       ),
     )..load();
@@ -48,13 +61,36 @@ class _AdBannerWidgetState extends State<AdBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb || !_isAdLoaded || _bannerAd == null) {
+    if (kIsWeb) {
       return const SizedBox.shrink();
     }
-    return SizedBox(
-      width: _bannerAd!.size.width.toDouble(),
-      height: _bannerAd!.size.height.toDouble(),
-      child: AdWidget(ad: _bannerAd!),
+
+    if (_isAdLoaded && _bannerAd != null) {
+      return SizedBox(
+        width: _bannerAd!.size.width.toDouble(),
+        height: _bannerAd!.size.height.toDouble(),
+        child: AdWidget(ad: _bannerAd!),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      height: 54,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+      ),
+      child: Center(
+        child: Text(
+          _loadFailed ? 'Banner reklam su an yuklenemedi' : 'Banner reklam alani yukleniyor...',
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

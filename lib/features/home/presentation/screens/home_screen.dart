@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/board_color_themes.dart';
+import '../../../../core/services/admob_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/ad_banner_widget.dart';
 import '../../../../providers/game_provider.dart';
@@ -175,7 +176,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
           const SizedBox(width: 10),
           Text(
-            'GAME DART',
+            'DART OYUNU',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2,
@@ -269,6 +270,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       },
       child: GestureDetector(
         onTap: () {
+          AdmobService.instance.maybeShowInterstitialForGameStart();
           ref.read(gameProvider.notifier).resetGame();
           context.go(AppConstants.routeGame);
         },

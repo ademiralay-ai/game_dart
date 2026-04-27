@@ -258,7 +258,7 @@ class SettingsScreen extends ConsumerWidget {
                               shaderCallback: (bounds) =>
                                   AppTheme.accentGradient().createShader(bounds),
                               child: const Text(
-                                'GAME DART',
+                                'DART OYUNU',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,

@@ -1,6 +1,6 @@
 {
-    "name": "game_dart",
-    "short_name": "game_dart",
+    "name": "Dart Oyunu",
+    "short_name": "Dart Oyunu",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

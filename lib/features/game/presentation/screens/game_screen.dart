@@ -20,12 +20,29 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
+enum _LaunchDifficulty {
+  easy('Kolay', 0.26),
+  medium('Orta', 0.20),
+  hard('Zor', 0.14);
+
+  final String label;
+  final double assistStrength;
+  const _LaunchDifficulty(this.label, this.assistStrength);
+}
+
 class _GameScreenState extends ConsumerState<GameScreen>
     with TickerProviderStateMixin {
   late AnimationController _aimCtrl;
   late AnimationController _boardCtrl;
-  bool _isAiming = false;
+  late AnimationController _confettiCtrl;
+  final math.Random _random = math.Random();
   bool _dialogOpen = false;
+  bool _isPulling = false;
+  Offset _dragDelta = Offset.zero;
+  double _pullStrength = 0;
+  _LaunchDifficulty _difficulty = _LaunchDifficulty.medium;
+
+  static const double _maxPullDistance = 170;
 
   @override
   void initState() {
@@ -38,16 +55,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
       vsync: this,
       duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
-
-    // Animasyon bitti → oyuncu vuramadı → otomatik ıskalama
-    _aimCtrl.addStatusListener((s) {
-      if (s == AnimationStatus.completed && _isAiming && mounted) {
-        _triggerThrow(1.0); // sınırın dışı = ıskalama
-      }
-    });
+    _confettiCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(gameProvider.notifier).startGame();
+      _startAiming();
     });
   }
 
@@ -55,39 +70,99 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void dispose() {
     _aimCtrl.dispose();
     _boardCtrl.dispose();
+    _confettiCtrl.dispose();
     super.dispose();
   }
 
+  bool get _isInAimingPhase => ref.read(gameProvider).phase == GamePhase.aiming;
+
   void _startAiming() {
     if (!mounted) return;
-    setState(() => _isAiming = true);
-    _aimCtrl
-      ..reset()
-      ..forward();
+    setState(() {
+      _isPulling = false;
+      _dragDelta = Offset.zero;
+      _pullStrength = 0;
+    });
+    _aimCtrl.reset();
   }
 
   void _triggerThrow(double radius) {
-    if (!_isAiming) return;
-    setState(() => _isAiming = false);
+    if (!_isInAimingPhase) return;
+    setState(() {
+      _isPulling = false;
+      _dragDelta = Offset.zero;
+      _pullStrength = 0;
+    });
     _aimCtrl.stop();
     ref.read(gameProvider.notifier).onThrow(radius);
   }
 
-  double _resolveThrowRadius(
-    Offset localPosition,
-    Size detectorSize,
-    double boardSize,
-  ) {
-    final center = Offset(detectorSize.width / 2, detectorSize.height / 2);
-    final boardRadius = boardSize / 2;
-    final touchRadius = (localPosition - center).distance / boardRadius;
+  void _onArrowDragStart(DragStartDetails details) {
+    if (!_isInAimingPhase) return;
+    setState(() {
+      _isPulling = true;
+      _dragDelta = Offset.zero;
+      _pullStrength = 0;
+    });
+  }
 
-    // Tahta disina tiklama her zaman iskalama olsun.
-    if (touchRadius >= 1.0) return 1.0;
+  void _onArrowDragUpdate(DragUpdateDetails details) {
+    if (!_isInAimingPhase || !_isPulling) return;
+    final next = _dragDelta + details.delta;
+    final dx = next.dx.clamp(-120.0, 120.0);
+    final dy = next.dy.clamp(0.0, _maxPullDistance);
 
-    final timingRadius = _aimCtrl.value.clamp(0.0, 1.1);
-    final weighted = (touchRadius * 0.9) + (timingRadius * 0.1);
-    return weighted.clamp(0.0, 1.0);
+    setState(() {
+      _dragDelta = Offset(dx, dy);
+      _pullStrength = (dy / _maxPullDistance).clamp(0.0, 1.0);
+    });
+  }
+
+  void _releaseCurrentArrow({double verticalVelocity = 0}) {
+    if (!_isInAimingPhase || !_isPulling) return;
+
+    if (_pullStrength < 0.12) {
+      setState(() {
+        _isPulling = false;
+        _dragDelta = Offset.zero;
+        _pullStrength = 0;
+      });
+      return;
+    }
+
+    final upSpeed = verticalVelocity.clamp(0.0, 2800.0);
+    final speedNorm = (upSpeed / 2200).clamp(0.0, 1.0);
+    final releaseNorm = ((_pullStrength - 0.12) / 0.88).clamp(0.0, 1.0);
+    final launchPower = math.max(speedNorm, releaseNorm);
+    final sideError = (_dragDelta.dx.abs() / 120).clamp(0.0, 1.0);
+    final pullControl = (1 - (_pullStrength - 0.72).abs() * 1.8).clamp(0.0, 1.0);
+    final assistedSideError =
+        (sideError * (1 - _difficulty.assistStrength)).clamp(0.0, 1.0);
+
+    final precision =
+        (launchPower * 0.45 + pullControl * 0.40 + (1 - assistedSideError) * 0.15)
+            .clamp(0.0, 1.0);
+
+    final radius =
+        ((1 - precision) * 0.88 + assistedSideError * 0.08).clamp(0.0, 1.0);
+    _triggerThrow(radius);
+  }
+
+  void _onArrowDragEnd(DragEndDetails details) {
+    _releaseCurrentArrow(
+      verticalVelocity: -details.velocity.pixelsPerSecond.dy,
+    );
+  }
+
+  void _onArrowDragCancel() {
+    _releaseCurrentArrow();
+  }
+
+  void _triggerRandomThrow() {
+    if (!_isInAimingPhase) return;
+
+    final randomRadius = _random.nextDouble().clamp(0.0, 1.0);
+    _triggerThrow(randomRadius);
   }
 
   void _showReviveDialog(BuildContext ctx) {
@@ -143,11 +218,16 @@ class _GameScreenState extends ConsumerState<GameScreen>
       if (next.phase == GamePhase.gameOver &&
           prev?.phase != GamePhase.gameOver) {
         _aimCtrl.stop();
-        setState(() => _isAiming = false);
+        setState(() => _isPulling = false);
         Future.delayed(const Duration(milliseconds: 600), () {
           // ignore: use_build_context_synchronously
           if (mounted) context.go(AppConstants.routeGameOver, extra: next);
         });
+      }
+      if (next.phase == GamePhase.showResult &&
+          prev?.phase != GamePhase.showResult &&
+          (next.lastThrowScore ?? 0) >= 50) {
+        _confettiCtrl.forward(from: 0);
       }
     });
 
@@ -185,21 +265,6 @@ class _GameScreenState extends ConsumerState<GameScreen>
                     child: LayoutBuilder(
                       builder: (context, constraints) => GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTapDown: (details) {
-                          if (_isAiming) {
-                            final r = _resolveThrowRadius(
-                              details.localPosition,
-                              constraints.biggest,
-                              boardSize,
-                            );
-                            _triggerThrow(r);
-                          }
-                        },
-                        onLongPressStart: (_) {
-                          if (!_isAiming && !(_aimCtrl.isAnimating)) {
-                            _startAiming();
-                          }
-                        },
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -244,25 +309,24 @@ class _GameScreenState extends ConsumerState<GameScreen>
                               );
                             },
                           ),
-                          // Aim ring
-                          AnimatedBuilder(
-                            animation: _aimCtrl,
-                            builder: (_, __) => SizedBox(
-                              width: boardSize,
-                              height: boardSize,
-                              child: CustomPaint(
-                                painter: _AimRingPainter(
-                                  radius: _aimCtrl.value,
-                                  isVisible: _isAiming,
-                                  pulse: _boardCtrl.value,
-                                ),
-                              ),
-                            ),
-                          ),
                           // Skor popup
                           if (gameState.lastThrowScore != null &&
                               gameState.phase == GamePhase.showResult)
                             _ScorePopup(score: gameState.lastThrowScore!),
+                          IgnorePointer(
+                            child: SizedBox(
+                              width: boardSize + 220,
+                              height: boardSize + 220,
+                              child: AnimatedBuilder(
+                                animation: _confettiCtrl,
+                                builder: (_, __) => CustomPaint(
+                                  painter: _ConfettiPainter(
+                                    progress: _confettiCtrl.value,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                           ],
                         ),
                       ),
@@ -273,7 +337,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 const SizedBox(height: 12),
                 _buildThrowCounter(gameState),
                 const SizedBox(height: 16),
-                _buildThrowButton(context, gameState),
+                _buildArrowLauncher(gameState),
                 const SizedBox(height: 20),
               ],
             ),
@@ -304,7 +368,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
           ),
           const Spacer(),
           const Text(
-            'GAME DART',
+            'DART OYUNU',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -420,45 +484,159 @@ class _GameScreenState extends ConsumerState<GameScreen>
     );
   }
 
-  // ─── Atış Butonu ──────────────────────────────────────────────────
-  Widget _buildThrowButton(BuildContext context, GameState gs) {
-    final ready = gs.phase == GamePhase.aiming && _isAiming;
+  // ─── Ok Fırlatma Alanı ────────────────────────────────────────────
+  Widget _buildArrowLauncher(GameState gs) {
+    final ready = gs.phase == GamePhase.aiming;
+    final hintText = ready
+        ? 'Oku aşağı çek, yukarı fırlat! Zorluk: ${_difficulty.label}'
+        : 'Sonraki atış hazırlanıyor...';
+    final shaftHeight = 14 + (34 * _pullStrength);
+    final shaftWidth = 4 + (3 * _pullStrength);
+    final arrowSize = 56 + (14 * _pullStrength);
+    final pullBottom = 34 - (_dragDelta.dy * 0.45);
 
-    return GestureDetector(
-      onTap: ready ? () => _triggerThrow(_aimCtrl.value) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 200,
-        height: 58,
-        decoration: BoxDecoration(
-          gradient: ready
-              ? AppTheme.accentGradient()
-              : LinearGradient(
-                  colors: [Colors.white12, Colors.white12],
-                ),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: ready
-              ? [
-                  BoxShadow(
-                    color: AppTheme.primaryLight.withOpacity(0.5),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  )
-                ]
-              : null,
+    return Column(
+      children: [
+        Text(
+          hintText,
+          style: TextStyle(
+            color: ready ? Colors.white70 : Colors.white38,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
         ),
-        child: Center(
-          child: Text(
-            ready ? '🎯  FIRLAT!' : '...',
-            style: TextStyle(
-              color: ready ? Colors.white : Colors.white38,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.5,
+        const SizedBox(height: 10),
+        _buildDifficultySelector(ready),
+        const SizedBox(height: 10),
+        Listener(
+          onPointerUp: (_) => _releaseCurrentArrow(),
+          onPointerCancel: (_) => _onArrowDragCancel(),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: _onArrowDragStart,
+            onPanUpdate: _onArrowDragUpdate,
+            onPanEnd: _onArrowDragEnd,
+            onPanCancel: _onArrowDragCancel,
+            child: Container(
+              width: 240,
+              height: 110,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
+              ),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Positioned(
+                    bottom: 20,
+                    child: Container(
+                      width: 74,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.16),
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 18,
+                    child: Container(
+                      width: shaftWidth,
+                      height: shaftHeight,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withOpacity(0.25),
+                            AppTheme.primaryLight.withOpacity(0.75),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                  AnimatedPositioned(
+                    duration: _isPulling
+                        ? Duration.zero
+                        : const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    left: 120 - 28 + (_dragDelta.dx * 0.35),
+                    bottom: pullBottom,
+                    child: Transform.rotate(
+                      angle: _dragDelta.dx * 0.004 + (_pullStrength * 0.03),
+                      child: Icon(
+                        Icons.navigation_rounded,
+                        size: arrowSize,
+                        color:
+                            ready ? const Color(0xFFFFF2CC) : Colors.white38,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: ready ? _triggerRandomThrow : null,
+          icon: const Icon(Icons.casino_rounded, size: 18),
+          label: const Text('Rastgele Fırlat'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: BorderSide(color: Colors.white.withOpacity(0.18)),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDifficultySelector(bool ready) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: _LaunchDifficulty.values.map((difficulty) {
+        final selected = _difficulty == difficulty;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: GestureDetector(
+            onTap: ready
+                ? () => setState(() {
+                      _difficulty = difficulty;
+                    })
+                : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppTheme.primaryLight.withOpacity(0.35)
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected
+                      ? AppTheme.accentCyan
+                      : Colors.white.withOpacity(0.16),
+                ),
+              ),
+              child: Text(
+                difficulty.label,
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.white60,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -492,89 +670,58 @@ class _GameScreenState extends ConsumerState<GameScreen>
   }
 }
 
-// ─── Aim Ring Painter ─────────────────────────────────────────────
-class _AimRingPainter extends CustomPainter {
-  final double radius;
-  final bool isVisible;
-  final double pulse;
+// ─── Konfeti Painter ──────────────────────────────────────────────
+class _ConfettiPainter extends CustomPainter {
+  final double progress;
 
-  const _AimRingPainter({
-    required this.radius,
-    required this.isVisible,
-    required this.pulse,
-  });
+  const _ConfettiPainter({required this.progress});
 
-  static Color _zoneColor(double r) {
-    if (r <= 0.12) return const Color(0xFFFFD700);  // altın
-    if (r <= 0.22) return const Color(0xFF00E676);  // yeşil
-    if (r <= 0.40) return const Color(0xFF40C4FF);  // mavi
-    if (r <= 0.55) return const Color(0xFFCE93D8);  // mor
-    if (r <= 0.70) return const Color(0xFFFFB74D);  // turuncu
-    if (r <= 0.85) return const Color(0xFFB0BEC5);  // gri
-    return const Color(0xFFFF1744);                  // kırmızı = ıskalama!
-  }
+  static const List<Color> _palette = [
+    Color(0xFFFFD54F),
+    Color(0xFFFF8A65),
+    Color(0xFF4FC3F7),
+    Color(0xFF81C784),
+    Color(0xFFCE93D8),
+    Color(0xFFFFF176),
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (!isVisible) return;
-    final center = Offset(size.width / 2, size.height / 2);
-    final maxR = size.width / 2;
-    final r = maxR * radius.clamp(0.0, 1.1);
-    final color = _zoneColor(radius);
-    final pulseValue = 0.5 + 0.5 * math.sin(pulse * math.pi * 2);
+    if (progress <= 0 || progress >= 1) return;
+    final eased = Curves.easeOut.transform(progress);
+    final fade = (1 - Curves.easeIn.transform(progress)).clamp(0.0, 1.0);
+    final origin = Offset(size.width / 2, size.height / 2);
 
-    // Glow
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..color = color.withOpacity(0.2)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 28
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
-    );
-    canvas.drawCircle(
-      center,
-      r + (7 * pulseValue),
-      Paint()
-        ..color = color.withOpacity(0.12)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-    // Ana halka
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5,
-    );
-    final markerAngle = -math.pi / 2 + pulse * math.pi * 2;
-    final marker = Offset(
-      center.dx + r * math.cos(markerAngle),
-      center.dy + r * math.sin(markerAngle),
-    );
-    canvas.drawCircle(
-      marker,
-      4,
-      Paint()..color = Colors.white.withOpacity(0.9),
-    );
-    // Merkez artı
-    final cp = Paint()
-      ..color = color.withOpacity(0.7)
-      ..strokeWidth = 1.5;
-    canvas.drawLine(
-        Offset(center.dx - 8, center.dy), Offset(center.dx + 8, center.dy), cp);
-    canvas.drawLine(
-        Offset(center.dx, center.dy - 8), Offset(center.dx, center.dy + 8), cp);
+    for (int i = 0; i < 64; i++) {
+      final seed = i + 1.0;
+      final angle = (-math.pi) + (i / 64) * (math.pi * 2);
+      final speed = 120 + (i % 7) * 24;
+      final spread = 40 + (i % 11) * 18;
+      final sway = math.sin((progress * 10) + seed) * 10;
+
+      final dx = origin.dx + math.cos(angle) * spread * eased + sway;
+      final dy = origin.dy + math.sin(angle) * spread * eased + speed * progress * 0.35;
+      final rot = (progress * 8) + seed;
+      final w = 6 + (i % 5).toDouble();
+      final h = 10 + (i % 6).toDouble();
+
+      canvas.save();
+      canvas.translate(dx, dy);
+      canvas.rotate(rot);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset.zero, width: w, height: h),
+          const Radius.circular(2),
+        ),
+        Paint()..color = _palette[i % _palette.length].withOpacity(fade),
+      );
+      canvas.restore();
+    }
   }
 
   @override
-  bool shouldRepaint(_AimRingPainter old) =>
-      radius != old.radius ||
-      isVisible != old.isVisible ||
-      pulse != old.pulse;
+  bool shouldRepaint(_ConfettiPainter oldDelegate) =>
+      progress != oldDelegate.progress;
 }
 
 // ─── Game Board Painter ───────────────────────────────────────────

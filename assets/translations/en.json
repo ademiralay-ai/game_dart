@@ -1,10 +1,10 @@
 {
-  "app_name": "Game Dart",
+  "app_name": "Dart Oyunu",
   "splash": {
     "tagline": "Hit the target, break the record!"
   },
   "home": {
-    "title": "Game Dart",
+    "title": "Dart Oyunu",
     "coming_soon": "Game Coming Soon",
     "coming_soon_desc": "An exciting dart game is being prepared...",
     "settings_btn": "Settings"

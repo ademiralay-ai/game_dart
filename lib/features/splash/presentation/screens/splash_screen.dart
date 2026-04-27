@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
                         shaderCallback: (bounds) =>
                             AppTheme.accentGradient().createShader(bounds),
                         child: const Text(
-                          'GAME DART',
+                          'DART OYUNU',
                           style: TextStyle(
                             fontSize: 42,
                             fontWeight: FontWeight.w900,

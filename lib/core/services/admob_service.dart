@@ -13,6 +13,7 @@ class AdmobService {
   RewardedAd? _rewardedAd;
   bool _isInterstitialReady = false;
   bool _isRewardedReady = false;
+  int _gamesSinceInterstitial = 0;
 
   /// Uygulamanın başında bir kez çağrılır.
   Future<void> initialize() async {
@@ -64,6 +65,25 @@ class AdmobService {
       },
     );
     _interstitialAd!.show();
+  }
+
+  /// Her 3. oyun başlangıcında geçiş reklamı gösterir.
+  void maybeShowInterstitialForGameStart() {
+    if (kIsWeb) return;
+
+    _gamesSinceInterstitial += 1;
+    if (_gamesSinceInterstitial < 3) {
+      debugPrint('[AdmobService] Oyun $_gamesSinceInterstitial: reklam atlandi');
+      return;
+    }
+
+    if (!_isInterstitialReady || _interstitialAd == null) {
+      debugPrint('[AdmobService] 3. oyunda reklam hazir degil, sonraki oyunda tekrar denenecek');
+      return;
+    }
+
+    _gamesSinceInterstitial = 0;
+    showInterstitial();
   }
 
   // ─── REWARDED ──────────────────────────────────────────────────

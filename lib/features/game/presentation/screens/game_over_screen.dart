@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/constants/board_color_themes.dart';
+import '../../../../core/services/admob_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../features/game/domain/models/game_state.dart';
 import '../../../../providers/game_provider.dart';
@@ -363,6 +364,7 @@ class _GameOverScreenState extends ConsumerState<GameOverScreen>
         // Tekrar Oyna
         GestureDetector(
           onTap: () {
+            AdmobService.instance.maybeShowInterstitialForGameStart();
             ref.read(gameProvider.notifier).resetGame();
             context.go(AppConstants.routeGame);
           },
@@ -393,7 +395,9 @@ class _GameOverScreenState extends ConsumerState<GameOverScreen>
         const SizedBox(height: 12),
         // Ana Menü
         GestureDetector(
-          onTap: () => context.go(AppConstants.routeHome),
+          onTap: () {
+            context.go(AppConstants.routeHome);
+          },
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 16),
