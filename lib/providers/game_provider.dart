@@ -25,13 +25,14 @@ class GameNotifier extends Notifier<GameState> {
     state = const GameState(phase: GamePhase.aiming);
   }
 
-  void onThrow(double ringRadius) {
+  void onThrow(double ringRadius, double angleRadians) {
     if (state.phase != GamePhase.aiming) return;
 
     final isMiss = ringRadius > 0.85;
     final throwScore = isMiss ? 0 : _score(ringRadius);
     final result = ThrowResult(
       ringRadius: ringRadius.clamp(0.0, 1.1),
+      angleRadians: angleRadians,
       score: throwScore,
       isMiss: isMiss,
     );

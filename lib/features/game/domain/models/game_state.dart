@@ -6,11 +6,13 @@ enum GamePhase { ready, aiming, showResult, livesOut, gameOver }
 @immutable
 class ThrowResult {
   final double ringRadius; // 0.0–1.0 arası (0 = merkez)
+  final double angleRadians; // -pi..pi, tahtadaki açısal konum
   final int score;
   final bool isMiss; // ring > 0.85 → can kaybı
 
   const ThrowResult({
     required this.ringRadius,
+    required this.angleRadians,
     required this.score,
     required this.isMiss,
   });

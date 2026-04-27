@@ -86,7 +86,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     _aimCtrl.reset();
   }
 
-  void _triggerThrow(double radius) {
+  void _triggerThrow(double radius, double angleRadians) {
     if (!_isInAimingPhase) return;
     setState(() {
       _isPulling = false;
@@ -94,7 +94,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _pullStrength = 0;
     });
     _aimCtrl.stop();
-    ref.read(gameProvider.notifier).onThrow(radius);
+    ref.read(gameProvider.notifier).onThrow(radius, angleRadians);
   }
 
   void _onArrowDragStart(DragStartDetails details) {
@@ -144,8 +144,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
             .clamp(0.0, 1.0);
 
     final radius =
-        ((1 - precision) * 0.88 + assistedSideError * 0.08).clamp(0.0, 1.0);
-    _triggerThrow(radius);
+      ((1 - precision) * 0.88 + assistedSideError * 0.08).clamp(0.0, 1.0);
+    _triggerThrow(radius, _predictAimAngleForPreview());
   }
 
   void _onArrowDragEnd(DragEndDetails details) {
@@ -174,6 +174,10 @@ class _GameScreenState extends ConsumerState<GameScreen>
     return assisted.clamp(-1.0, 1.0);
   }
 
+  double _predictAimAngleForPreview() {
+    return -math.pi / 2 + (_predictOffsetXForAimPreview() * 0.38);
+  }
+
   void _onArrowDragCancel() {
     _releaseCurrentArrow();
   }
@@ -182,7 +186,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
     if (!_isInAimingPhase) return;
 
     final randomRadius = _random.nextDouble().clamp(0.0, 1.0);
-    _triggerThrow(randomRadius);
+    final randomAngle = -math.pi + (_random.nextDouble() * math.pi * 2);
+    _triggerThrow(randomRadius, randomAngle);
   }
 
   void _showReviveDialog(BuildContext ctx) {
@@ -323,8 +328,8 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                         throwHistory: gameState.throwHistory,
                                         motion: _boardCtrl.value,
                                         aimPreviewRadius: _predictRadiusForAimPreview(),
-                                        aimPreviewOffsetX:
-                                            _predictOffsetXForAimPreview(),
+                                        aimPreviewAngle:
+                                          _predictAimAngleForPreview(),
                                         showAimPreview:
                                             gameState.phase == GamePhase.aiming &&
                                             _isPulling,
@@ -756,7 +761,7 @@ class _GameBoardPainter extends CustomPainter {
   final List<ThrowResult> throwHistory;
   final double motion;
   final double aimPreviewRadius;
-  final double aimPreviewOffsetX;
+  final double aimPreviewAngle;
   final bool showAimPreview;
 
   const _GameBoardPainter({
@@ -764,7 +769,7 @@ class _GameBoardPainter extends CustomPainter {
     required this.throwHistory,
     required this.motion,
     required this.aimPreviewRadius,
-    required this.aimPreviewOffsetX,
+    required this.aimPreviewAngle,
     required this.showAimPreview,
   });
 
@@ -1099,7 +1104,7 @@ class _GameBoardPainter extends CustomPainter {
     for (int i = 0; i < throwHistory.length; i++) {
       final t = throwHistory[i];
       if (t.isMiss) continue;
-      final angle = i * 137.508 * math.pi / 180;
+      final angle = t.angleRadians;
       final r = boardOuter * t.ringRadius.clamp(0.0, 0.90);
       final dx = center.dx + r * math.cos(angle);
       final dy = center.dy + r * math.sin(angle);
@@ -1149,11 +1154,9 @@ class _GameBoardPainter extends CustomPainter {
 
     if (showAimPreview) {
       final previewR = boardOuter * aimPreviewRadius.clamp(0.0, 0.90);
-      final previewAngle =
-          -math.pi / 2 + (aimPreviewOffsetX.clamp(-1.0, 1.0) * 0.38);
       final previewCenter = Offset(
-        center.dx + previewR * math.cos(previewAngle),
-        center.dy + previewR * math.sin(previewAngle),
+        center.dx + previewR * math.cos(aimPreviewAngle),
+        center.dy + previewR * math.sin(aimPreviewAngle),
       );
 
       canvas.drawCircle(
@@ -1187,7 +1190,7 @@ class _GameBoardPainter extends CustomPainter {
       motion != old.motion ||
       showAimPreview != old.showAimPreview ||
       aimPreviewRadius != old.aimPreviewRadius ||
-      aimPreviewOffsetX != old.aimPreviewOffsetX;
+      aimPreviewAngle != old.aimPreviewAngle;
 }
 
 // ─── Skor Popup ───────────────────────────────────────────────────

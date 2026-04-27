@@ -1,7 +1,7 @@
 name: game_dart
 description: "Eğlenceli bir dart tahta oyunu - A fun dart board game."
 publish_to: 'none'
-version: 1.0.4+5
+version: 1.0.5+6
 
 # ─────────────────────────────────────────────────────────────────
 # KURUMSAL AĞ / GÜVENLIK DUVARI NOTU:
