@@ -118,7 +118,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
     });
   }
 
-  void _releaseCurrentArrow({double verticalVelocity = 0}) {
+  void _releaseCurrentArrow() {
     if (!_isInAimingPhase || !_isPulling) return;
 
     if (_pullStrength < 0.12) {
@@ -130,52 +130,38 @@ class _GameScreenState extends ConsumerState<GameScreen>
       return;
     }
 
-    final upSpeed = verticalVelocity.clamp(0.0, 2800.0);
-    final speedNorm = (upSpeed / 2200).clamp(0.0, 1.0);
-    final releaseNorm = ((_pullStrength - 0.12) / 0.88).clamp(0.0, 1.0);
-    final launchPower = math.max(speedNorm, releaseNorm);
-    final sideError = (_dragDelta.dx.abs() / 120).clamp(0.0, 1.0);
-    final pullControl = (1 - (_pullStrength - 0.72).abs() * 1.8).clamp(0.0, 1.0);
-    final assistedSideError =
-        (sideError * (1 - _difficulty.assistStrength)).clamp(0.0, 1.0);
+    final target = _predictAimTargetOnBoard();
+    final radius = target.distance.clamp(0.0, 0.95);
+    final angle = math.atan2(target.dy, target.dx);
 
-    final precision =
-        (launchPower * 0.45 + pullControl * 0.40 + (1 - assistedSideError) * 0.15)
-            .clamp(0.0, 1.0);
-
-    final radius =
-      ((1 - precision) * 0.88 + assistedSideError * 0.08).clamp(0.0, 1.0);
-    _triggerThrow(radius, _predictAimAngleForPreview());
+    _triggerThrow(radius, angle);
   }
 
   void _onArrowDragEnd(DragEndDetails details) {
-    _releaseCurrentArrow(
-      verticalVelocity: -details.velocity.pixelsPerSecond.dy,
-    );
+    _releaseCurrentArrow();
+  }
+
+  Offset _predictAimTargetOnBoard() {
+    final rawX = (_dragDelta.dx / 120).clamp(-1.0, 1.0);
+    final rawY = ((2 * _pullStrength) - 1).clamp(-1.0, 1.0);
+
+    // Kolay/orta modlarda hedefi merkeze bir miktar yaklaştırıp kontrolü artırır.
+    final x = rawX * (1 - _difficulty.assistStrength * 0.55);
+    final y = rawY * (1 - _difficulty.assistStrength * 0.20);
+
+    final target = Offset(x, y);
+    final d = target.distance;
+    if (d <= 0.95) return target;
+    return target / d * 0.95;
   }
 
   double _predictRadiusForAimPreview() {
-    final sideError = (_dragDelta.dx.abs() / 120).clamp(0.0, 1.0);
-    final pullControl =
-        (1 - (_pullStrength - 0.72).abs() * 1.8).clamp(0.0, 1.0);
-    final assistedSideError =
-        (sideError * (1 - _difficulty.assistStrength)).clamp(0.0, 1.0);
-
-    final precision =
-        (pullControl * 0.85 + (1 - assistedSideError) * 0.15).clamp(0.0, 1.0);
-
-    return ((1 - precision) * 0.88 + assistedSideError * 0.08)
-        .clamp(0.0, 1.0);
-  }
-
-  double _predictOffsetXForAimPreview() {
-    final sideNorm = (_dragDelta.dx / 120).clamp(-1.0, 1.0);
-    final assisted = sideNorm * (1 - _difficulty.assistStrength);
-    return assisted.clamp(-1.0, 1.0);
+    return _predictAimTargetOnBoard().distance.clamp(0.0, 0.95);
   }
 
   double _predictAimAngleForPreview() {
-    return -math.pi / 2 + (_predictOffsetXForAimPreview() * 0.38);
+    final target = _predictAimTargetOnBoard();
+    return math.atan2(target.dy, target.dx);
   }
 
   void _onArrowDragCancel() {
